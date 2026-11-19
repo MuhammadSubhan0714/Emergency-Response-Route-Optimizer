@@ -1,0 +1,142 @@
+src/main.cpp — the menu and program flow
+The #include lines bring in the graph, incident, unit, and history classes. The constants near the top hold the paths to the five data files.
+showRoute
+This function asks for a starting location and destination, then calls city.fastestRoute. If there’s no route, it prints a message and returns to the menu. Otherwise, it prints the travel time and each location ID in the route, with arrows between them.
+changeRoad
+This function reads two location names, a travel time, and an open/closed choice. It calls city.updateRoad to change the existing road in both directions. If the road is valid, it saves the updated road data to roads.txt.
+reportEmergency
+The type number represents medical, fire, accident, or security. The function checks that the type and severity are in range, looks up the entered location through the city’s hash table, and calls manager.report to add the incident to the incoming queue. It then saves the incident file.
+advanceTime
+This reads a number of simulated minutes and calls addWaitingTime. The incident manager increases the waiting time for incidents that haven’t been dispatched, then rebuilds the priority heap so its order reflects the new scores.
+registerUnit
+This reads the unit type and starting location, checks that the location exists, registers the unit, and saves units.txt.
+dispatchNextIncident
+This asks the incident manager for the highest-priority incident without removing it yet. The unit manager checks available units that can handle that type of incident and calculates a route from each unit to the incident. It selects the unit with the lowest travel time.
+
+If a suitable unit is found, the function marks the incident dispatched, marks the unit busy, adds a record to the dispatch history, prints the chosen route, and saves all three files.
+completeIncident
+This asks for an incident ID. If that incident is dispatched, the function marks it complete, moves its assigned unit to the incident location, marks the unit available, updates the history record, and saves the changes.
+main
+main creates one object for each major system: CityGraph, IncidentManager, UnitManager, and DispatchHistory. It loads their files before showing the menu.
+
+The while (true) keeps the menu running. The switch (choice) calls the matching operation for each menu number. Cases 14 and 15 search incidents; case 16 sorts incidents by priority; case 17 sorts dispatch history by travel time; case 19 finds incidents at a location. Case 0 saves the data and exits.
+src/city_graph.h — the city’s data shapes
+MAX_LOCATIONS sets the fixed limit at 100.
+- Location stores an ID and a name.
+- Road stores the destination location, travel time, whether the road is open, and a pointer to the next road.
+- Route stores whether a route was found, its total time, and an array of location IDs along the route.
+CityGraph declares the operations for loading and saving the map, finding locations, printing the map, calculating routes, and changing road conditions. Its private arrays store locations and the head of each location’s linked list of roads. locationTable is the hash table used to find a location ID by name.
+
+The private copy declarations prevent copying CityGraph, because it owns road-list pointers. A default copy would make two objects point to the same nodes and could cause memory errors when they are destroyed.
+src/city_graph.cpp — reading the map and routing
+File-reading helpers
+textToNumber checks that a string contains digits and does not exceed a specified maximum. It is used for numeric values in the data files.
+
+splitLine breaks a data row at each |. For example:
+1|2|12|1
+becomes four fields: 1, 2, 12, and 1.
+Creating and clearing the graph
+The CityGraph constructor initializes every location as absent and every road-list pointer to nullptr.
+
+The destructor calls clear when the graph is no longer needed. clear walks each road list, deletes every node, resets the location data, and clears the hash table. This prevents memory allocated with new from being left behind.
+Loading and saving
+load clears old data, loads locations first, then roads. Roads depend on location IDs, so the locations must exist first.
+
+loadLocations reads each line, skips comments, splits the record, checks the ID and name, rejects duplicate IDs or names, stores the location, and adds the name-to-ID mapping to the hash table.
+
+loadRoads reads each road, checks the IDs, travel time, and open flag, rejects missing locations and duplicate roads, then calls addRoad.
+
+addRoad creates two linked-list nodes: one from the first location to the second and another in the opposite direction. That is how the program represents a two-way road.
+
+saveRoads writes each road only once. The fromId < road->destinationId check avoids writing both copies of the same two-way road.
+Finding locations and printing
+findLocation delegates the name lookup to the hash table. hasLocation checks that an ID is within range and actually exists. locationName returns the name for a valid ID or "Unknown location" otherwise.
+
+printLocations prints all existing locations. printRoads walks each location’s linked list and prints each two-way road only once.
+fastestRoute
+This is Dijkstra’s algorithm:
+1. It looks up the start and destination names.
+2. It initializes every travel distance to a large “infinity” value and every previous-location value to -1.
+3. It puts the start location into the min-heap with a travel time of zero.
+4. It repeatedly removes the location with the smallest known travel time.
+5. It skips closed roads. For each open road, it checks whether travelling through that road gives a shorter route.
+6. If it finds a shorter route, it updates the distance and previous-location arrays and adds the new candidate to the heap.
+7. Once the destination is reached, it follows the previous values backward to reconstruct the route, then reverses that path into start-to-destination order.
+updateRoad looks up both location IDs and finds the road node in each direction. It changes both copies so the two-way road stays consistent.
+src/location_lookup.h and src/location_lookup.cpp — the hash table
+LocationEntry is one node in a hash-table chain. Each node stores a location name, its ID, and a pointer to the next node in the same bucket.
+
+The table has 31 buckets. hash processes each character to choose a bucket number. Different names can land in the same bucket; that is a collision. insert handles collisions by adding another linked node at the front of that bucket. find walks the chain until it finds the exact name.
+
+clear and the destructor delete every entry node. The private copy declarations prevent accidental copying of the table’s owned pointers.
+src/min_heap.h — the route heap
+RouteCandidate is a location paired with its current travel time. MinHeap stores candidates in an ordinary array.
+
+In a binary heap, the parent of position child is (child - 1) / 2; the children of parent are 2 * parent + 1 and 2 * parent + 2.
+- push puts a candidate at the end, then moves it upward until its travel time is no smaller than its parent’s.
+- pop removes the smallest travel time, moves the last item to the root, and moves it downward until the heap order is restored.
+- empty tells Dijkstra whether there are candidates left.
+- less compares travel times.
+- swapItems exchanges two array entries.
+This heap is used by route finding. The separate incident heap uses a different priority rule.
+src/incident_manager.h and src/incident_manager.cpp — incidents, queue, and priority heap
+Incident stores the incident ID, type, location, severity, waiting minutes, status, assigned unit, and route time.
+The incoming queue
+IncidentQueue is a circular array queue. front is the next item to remove, rear is where the next item is added, and count tracks the number of items.
+
+add moves rear forward with % MAX_INCIDENTS, which wraps it back to the start of the array. remove returns the front ID and advances front. New reports wait here in arrival order.
+The priority heap
+IncidentHeap stores incident copies in a binary heap. Its comparison uses this score:
+severity * 100 + waiting minutes
+The higher score comes first; if two scores match, the older, lower-numbered incident ID comes first. add moves a new incident upward. removeHighestPriority removes the root and sifts the replacement downward.
+The manager’s file and status logic
+IncidentManager::load reads the incident file, validates each record, stores it in the fixed array, and rebuilds either the incoming queue or the priority heap based on status. It also sets the next incident ID to one higher than the largest loaded ID.
+
+save writes all incident fields back to the text file. report creates a new incident with zero waiting time and status 0 (“new”), stores it, and queues its ID.
+
+Statuses are:
+- 0: new, waiting in the FIFO queue
+- 1: prioritized, in the priority heap
+- 2: dispatched
+- 3: completed
+prioritizeNewReports removes IDs from the FIFO queue in order, updates each incident to status 1, and inserts it into the priority heap.
+
+addWaitingTime increases the waiting time for new and prioritized incidents, then calls rebuildHeap because their priority scores changed.
+
+nextForDispatch copies the heap and removes its top item from the copy. This lets the program inspect the next incident without changing the real heap before it has found a unit.
+
+markDispatched checks that the incident is still the heap’s highest-priority item, removes it from the real heap, and records its unit and travel time. completeIncident changes its status to completed and returns the unit and incident location to the caller.
+Incident reports and searches
+showPriorities prints new reports in arrival order, then drains a copy of the priority heap to show prioritized incidents from highest to lowest.
+
+searchLinear checks incident IDs one by one and counts comparisons.
+
+searchBinary first insertion-sorts a copy of the incidents by ID, then repeatedly checks the middle element and discards half the remaining range. Binary search needs sorted data, which is why it sorts a copy first.
+
+searchByLocation uses the city hash table to turn a location name into an ID, then scans the incidents for matches.
+
+showSortedByPriority bubble-sorts a copy by priority score and prints the comparison count. It does not change the live queue or heap.
+src/unit_manager.h and src/unit_manager.cpp — emergency units
+EmergencyUnit stores an ID, a unit type, its current location, and whether it is available.
+
+UnitManager::load reads units from units.txt; save writes them back. registerUnit adds a new available unit with the next ID. setAvailable changes a unit’s availability. completeDispatch moves a unit to the incident location and marks it available.
+
+unitCanHandle defines the compatibility rules: ambulances handle medical incidents; fire engines handle fires; accidents can use ambulances or rescue units; patrol units handle security incidents.
+
+findFastestUnit checks each available compatible unit, asks the city graph for its route to the incident, and keeps the unit with the least travel time. showUnits prints each unit’s type, location, and availability.
+src/dispatch_history.h and src/dispatch_history.cpp — linked dispatch history
+DispatchRecord stores an incident ID, unit ID, route time, completion status, and pointer to the next record.
+
+The history class keeps head and tail pointers. add appends a new node at the tail. findRecord walks from the head to find an incident. markCompleted changes the matching record. clear and the destructor delete the linked nodes.
+
+load rebuilds the list from dispatch_history.txt; save writes each node back to the file. show prints the whole list. searchByIncident scans the list and counts comparisons.
+
+showSortedByTravelTime copies records into an array and insertion-sorts that copy by route time. The linked-list history itself stays in its original dispatch order.
+The data files
+Each file has a comment line beginning with #; the program skips those lines.
+- locations.txt: id|location name
+- roads.txt: first location ID|second location ID|minutes|open
+- units.txt: unit ID|type|location ID|available
+- incidents.txt: incident ID|type|location ID|severity|waiting minutes|status|unit ID|route minutes
+- dispatch_history.txt: incident ID|unit ID|route minutes|completed
+Type numbers are explained in the comment lines at the top of units.txt and incidents.txt. Road and incident state numbers are also stored there.
