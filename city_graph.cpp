@@ -79,9 +79,7 @@ void CityGraph::clear() {
     locationTable.clear();
 }
 
-bool CityGraph::load(const string& locationsFile,
-                     const string& roadsFile,
-                     string& error) {
+bool CityGraph::load(const string& locationsFile,const string& roadsFile, string& error) {
     clear();
 
     if (!loadLocations(locationsFile, error)) {
@@ -143,8 +141,8 @@ bool CityGraph::loadLocations(const string& fileName, string& error) {
 }
 
 void CityGraph::addRoad(int firstId, int secondId, int minutes, bool open) {
-    Road* roadFromFirst = new Road;
-    Road* roadFromSecond = new Road;
+    Road* roadFromFirst = new Road;     
+    Road* roadFromSecond = new Road;        // Represents the road in the opposite direction
 
     roadFromFirst->destinationId = secondId;
     roadFromFirst->travelMinutes = minutes;
@@ -221,15 +219,12 @@ bool CityGraph::saveRoads(const string& roadsFile, string& error) const {
         return false;
     }
 
-    file << "# firstLocationId|secondLocationId|travelMinutes|open(1=yes,0=no)"
-         << endl;
+    file << "# firstLocationId|secondLocationId|travelMinutes|open(1=yes,0=no)" << endl;
     for (int fromId = 1; fromId <= MAX_LOCATIONS; fromId++) {
         const Road* road = roads[fromId];
         while (road != nullptr) {
             if (fromId < road->destinationId) {
-                file << fromId << '|' << road->destinationId << '|'
-                     << road->travelMinutes << '|' << (road->open ? 1 : 0)
-                     << endl;
+                file << fromId << '|' << road->destinationId << '|' << road->travelMinutes << '|' << (road->open ? 1 : 0) << endl;
             }
             road = road->next;
         }
@@ -274,24 +269,19 @@ void CityGraph::printRoads() const {
         const Road* road = roads[fromId];
         while (road != nullptr) {
             if (fromId < road->destinationId) {
-                cout << "  " << locationName(fromId) << " <-> "
-                     << locationName(road->destinationId) << " | "
-                     << road->travelMinutes << " min | "
-                     << (road->open ? "Open" : "Closed") << endl;
+                cout << "  " << locationName(fromId) << " <-> " << locationName(road->destinationId) << " | " << road->travelMinutes << " min | "<< (road->open ? "Open" : "Closed") << endl;
             }
             road = road->next;
         }
     }
 }
 
-Route CityGraph::fastestRoute(const string& startName,
-                              const string& destinationName) const {
+Route CityGraph::fastestRoute(const string& startName, const string& destinationName) const {       //Dijkstra algorithm
     Route route;
     int startId = 0;
     int destinationId = 0;
 
-    if (!locationTable.find(startName, startId) ||
-        !locationTable.find(destinationName, destinationId)) {
+    if (!locationTable.find(startName, startId) || !locationTable.find(destinationName, destinationId)) {
         return route;
     }
 
@@ -361,15 +351,11 @@ Route CityGraph::fastestRoute(const string& startName,
     return route;
 }
 
-bool CityGraph::updateRoad(const string& firstName,
-                           const string& secondName,
-                           int travelMinutes,
-                           bool open) {
+bool CityGraph::updateRoad(const string& firstName, const string& secondName, int travelMinutes, bool open) {
     int firstId = 0;
     int secondId = 0;
 
-    if (travelMinutes <= 0 || !locationTable.find(firstName, firstId) ||
-        !locationTable.find(secondName, secondId)) {
+    if (travelMinutes <= 0 || !locationTable.find(firstName, firstId) || !locationTable.find(secondName, secondId)) {
         return false;
     }
 
