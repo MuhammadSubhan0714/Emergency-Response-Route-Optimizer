@@ -294,8 +294,10 @@ int main() {
         cout << error << endl;
     }
 
-    cout << "Smart Emergency Response and Route Optimizer" << endl;
-    cout << "City map, route finder, and incident prioritization" << endl;
+    cout << "============================================================" << endl;
+    cout << "       SMART EMERGENCY RESPONSE & ROUTE OPTIMIZER" << endl;
+    cout << "              Emergency Dispatch Simulation" << endl;
+    cout << "============================================================" << endl;
 
     while (true) {
         cout << endl << "1. Show locations" << endl;
@@ -303,18 +305,17 @@ int main() {
         cout << "3. Find fastest route" << endl;
         cout << "4. Change traffic or road status" << endl;
         cout << "5. Report an emergency" << endl;
-        cout << "6. Search incidents by keyword" << endl;
-        cout << "7. Show incident priorities" << endl;
-        cout << "8. Advance waiting time" << endl;
-        cout << "9. Show emergency units" << endl;
-        cout << "10. Register an emergency unit" << endl;
-        cout << "11. Dispatch the next incident" << endl;
-        cout << "12. Complete a dispatched incident" << endl;
-        cout << "13. Show dispatch history" << endl;
-        cout << "14. Sort incidents by priority" << endl;
-        cout << "15. Sort dispatches by travel time" << endl;
-        cout << "16. Find incidents at a location" << endl;
-        cout << "17. Save and exit" << endl;
+        cout << "6. Search incidents or view all by priority" << endl;
+        cout << "7. Advance waiting time" << endl;
+        cout << "8. Show emergency units" << endl;
+        cout << "9. Register an emergency unit" << endl;
+        cout << "10. Dispatch the next incident" << endl;
+        cout << "11. Complete a dispatched incident" << endl;
+        cout << "12. Show dispatch history" << endl;
+        cout << "13. Sort incidents by priority" << endl;
+        cout << "14. Sort dispatches by travel time" << endl;
+        cout << "15. Find incidents at a location" << endl;
+        cout << "16. Save and exit" << endl;
 
         int choice = -1;
         cout << "Choose: ";
@@ -341,48 +342,45 @@ int main() {
                 break;
             case 6: {
                 string keyword;
-                cout << "Search by emergency type, location, or status: ";
+                cout << "Search by type, location, or status (Enter for all, ranked by priority): ";
                 getline(cin, keyword);
                 incidentManager.searchByKeyword(keyword, city);
                 break;
             }
             case 7:
-                incidentManager.showPriorities(city);
-                break;
-            case 8:
                 advanceTime(incidentManager);
                 break;
-            case 9:
+            case 8:
                 unitManager.showUnits(city);
                 break;
-            case 10:
+            case 9:
                 registerUnit(city, unitManager);
                 break;
-            case 11:
+            case 10:
                 dispatchNextIncident(city, incidentManager, unitManager,
                                      dispatchHistory);
                 break;
-            case 12:
+            case 11:
                 completeIncident(city, incidentManager, unitManager,
                                  dispatchHistory);
                 break;
-            case 13:
+            case 12:
                 dispatchHistory.show();
                 break;
-            case 14:
+            case 13:
                 incidentManager.showSortedByPriority(city);
                 break;
-            case 15:
+            case 14:
                 dispatchHistory.showSortedByTravelTime();
                 break;
-            case 16: {
+            case 15: {
                 string location;
                 cout << "Location name: ";
                 getline(cin, location);
                 incidentManager.searchByLocation(location, city);
                 break;
             }
-            case 17:
+            case 16:
                 if (!city.saveRoads(ROADS_FILE, error)) {
                     cout << error << endl;
                 }
@@ -398,7 +396,7 @@ int main() {
                 cout << "Project data saved. Goodbye." << endl;
                 return 0;
             default:
-                cout << "Choose a menu option from 1 to 17." << endl;
+                cout << "Choose a menu option from 1 to 16." << endl;
                 break;
         }
     }
