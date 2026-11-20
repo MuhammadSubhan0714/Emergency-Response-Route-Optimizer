@@ -6,6 +6,21 @@
 using namespace std;
 
 namespace {
+string lowerCase(string text) {
+    int length = text.length();
+    for (int i = 0; i < length; i++) {
+        if (text[i] >= 'A' && text[i] <= 'Z') {
+            text[i] = text[i] - 'A' + 'a';
+        }
+    }
+    return text;
+}
+
+bool hasKeyword(const string& text, const string& keyword) {
+    return lowerCase(text).find(lowerCase(keyword)) != string::npos;
+}
+}
+
 const int WAITING_FOR_PRIORITY = 0;
 const int IN_PRIORITY_HEAP = 1;
 const int DISPATCHED = 2;
@@ -80,7 +95,7 @@ string incidentStatusName(int status) {
 int priorityScore(const Incident& incident) {
     return incident.severity * 100 + incident.waitingMinutes;
 }
-}
+
 
 IncidentQueue::IncidentQueue() : front(0), rear(-1), count(0) {
 }
@@ -118,8 +133,7 @@ void IncidentHeap::clear() {
     count = 0;
 }
 
-bool IncidentHeap::hasHigherPriority(const Incident& first,
-                                    const Incident& second) const {
+bool IncidentHeap::hasHigherPriority(const Incident& first, const Incident& second) const {
     int firstScore = first.severity * 100 + first.waitingMinutes;
     int secondScore = second.severity * 100 + second.waitingMinutes;
 
@@ -130,9 +144,9 @@ bool IncidentHeap::hasHigherPriority(const Incident& first,
 }
 
 void IncidentHeap::swapIncidents(int first, int second) {
-    Incident temporary = incidents[first];
+    Incident temp = incidents[first];
     incidents[first] = incidents[second];
-    incidents[second] = temporary;
+    incidents[second] = temp;
 }
 
 bool IncidentHeap::add(Incident incident) {
@@ -190,9 +204,7 @@ Incident IncidentHeap::removeHighestPriority() {
 IncidentManager::IncidentManager() : incidentCount(0), nextIncidentId(1) {
 }
 
-bool IncidentManager::load(const string& fileName,
-                           const CityGraph& city,
-                           string& error) {
+bool IncidentManager::load(const string& fileName, const CityGraph& city, string& error) {
     ifstream file(fileName.c_str());
     if (!file) {
         error = "Could not open incidents file: " + fileName;
@@ -215,8 +227,7 @@ bool IncidentManager::load(const string& fileName,
         string fields[8];
         int fieldCount = splitRecord(line, fields, 8);
         if ((fieldCount != 6 && fieldCount != 8) || incidentCount == MAX_INCIDENTS) {
-            error = "Invalid or excessive incident records near line " +
-                    to_string(lineNumber);
+            error = "Invalid or excessive incident records near line " + to_string(lineNumber);
             return false;
         }
 
@@ -226,15 +237,14 @@ bool IncidentManager::load(const string& fileName,
             !textToNumber(fields[2], MAX_LOCATIONS, incident.locationId) ||
             !textToNumber(fields[3], 5, incident.severity) ||
             !textToNumber(fields[4], MAX_WAITING_MINUTES, incident.waitingMinutes) ||
-            !textToNumber(fields[5], 1, incident.status)) {
+            !textToNumber(fields[5], COMPLETED, incident.status)) {
             error = "Invalid incident record at line " + to_string(lineNumber);
             return false;
         }
         incident.unitId = 0;
         incident.travelMinutes = 0;
         if (fieldCount == 8 &&
-            (!textToNumber(fields[6], 100, incident.unitId) ||
-             !textToNumber(fields[7], 1000000, incident.travelMinutes))) {
+            (!textToNumber(fields[6], 100, incident.unitId) || !textToNumber(fields[7], 1000000, incident.travelMinutes))) {
             error = "Invalid incident record at line " + to_string(lineNumber);
             return false;
         }
@@ -394,9 +404,7 @@ bool IncidentManager::markDispatched(int incidentId, int unitId, int travelMinut
     return true;
 }
 
-bool IncidentManager::completeIncident(int incidentId,
-                                       int& unitId,
-                                       int& locationId) {
+bool IncidentManager::completeIncident(int incidentId, int& unitId, int& locationId) {
     Incident* incident = findIncident(incidentId);
     if (incident == nullptr || incident->status != DISPATCHED) {
         return false;
@@ -408,6 +416,42 @@ bool IncidentManager::completeIncident(int incidentId,
     return true;
 }
 
+void IncidentManager::showDispatched(const CityGraph& city) const {
+    int choice = 0;
+    for (int i = 0; i < incidentCount; i++) {
+        if (incidents[i].status == DISPATCHED) {
+            choice++;
+            cout << choice << ". " << incidentTypeName(incidents[i].type)
+                 << " at " << city.locationName(incidents[i].locationId)
+                 << " | unit " << incidents[i].unitId
+                 << " | estimated arrival " << incidents[i].travelMinutes
+                 << " min" << endl;
+        }
+    }
+    if (choice == 0) {
+        cout << "There are no dispatched incidents to complete." << endl;
+    }
+}
+
+bool IncidentManager::completeDispatchedAt(int choice, int& incidentId,
+                                            int& unitId, int& locationId) {
+    if (choice <= 0) {
+        return false;
+    }
+
+    int currentChoice = 0;
+    for (int i = 0; i < incidentCount; i++) {
+        if (incidents[i].status == DISPATCHED) {
+            currentChoice++;
+            if (currentChoice == choice) {
+                incidentId = incidents[i].id;
+                return completeIncident(incidentId, unitId, locationId);
+            }
+        }
+    }
+    return false;
+}
+
 void IncidentManager::rebuildHeap() {
     priorityHeap.clear();
     for (int i = 0; i < incidentCount; i++) {
@@ -417,8 +461,7 @@ void IncidentManager::rebuildHeap() {
     }
 }
 
-void IncidentManager::printIncident(const Incident& incident,
-                                    const CityGraph& city) const {
+void IncidentManager::printIncident(const Incident& incident,const CityGraph& city) const {
     cout << "ID " << incident.id << " | " << incidentTypeName(incident.type)
          << " | " << city.locationName(incident.locationId)
          << " | severity " << incident.severity
@@ -455,58 +498,6 @@ void IncidentManager::showPriorities(const CityGraph& city) const {
     }
 }
 
-void IncidentManager::searchLinear(int incidentId, const CityGraph& city) const {
-    int comparisons = 0;
-    for (int i = 0; i < incidentCount; i++) {
-        comparisons++;
-        if (incidents[i].id == incidentId) {
-            cout << "Incident found with linear search:" << endl;
-            printIncident(incidents[i], city);
-            cout << "Comparisons: " << comparisons << endl;
-            return;
-        }
-    }
-    cout << "Incident not found. Comparisons: " << comparisons << endl;
-}
-
-void IncidentManager::searchBinary(int incidentId, const CityGraph& city) const {
-    Incident sorted[MAX_INCIDENTS];
-    for (int i = 0; i < incidentCount; i++) {
-        sorted[i] = incidents[i];
-    }
-
-    // Binary search needs records in ID order, so sort this report copy first.
-    for (int i = 1; i < incidentCount; i++) {
-        Incident current = sorted[i];
-        int place = i - 1;
-        while (place >= 0 && sorted[place].id > current.id) {
-            sorted[place + 1] = sorted[place];
-            place--;
-        }
-        sorted[place + 1] = current;
-    }
-
-    int left = 0;
-    int right = incidentCount - 1;
-    int comparisons = 0;
-    while (left <= right) {
-        int middle = (left + right) / 2;
-        comparisons++;
-        if (sorted[middle].id == incidentId) {
-            cout << "Incident found with binary search:" << endl;
-            printIncident(sorted[middle], city);
-            cout << "Search comparisons: " << comparisons << endl;
-            return;
-        }
-        if (sorted[middle].id < incidentId) {
-            left = middle + 1;
-        } else {
-            right = middle - 1;
-        }
-    }
-    cout << "Incident not found. Search comparisons: " << comparisons << endl;
-}
-
 void IncidentManager::searchByLocation(const string& location,
                                        const CityGraph& city) const {
     int locationId = 0;
@@ -525,6 +516,29 @@ void IncidentManager::searchByLocation(const string& location,
     }
     if (matches == 0) {
         cout << "No incidents have been reported at this location." << endl;
+    }
+}
+
+void IncidentManager::searchByKeyword(const string& keyword,
+                                      const CityGraph& city) const {
+    if (keyword.length() == 0) {
+        cout << "Enter a word to search for." << endl;
+        return;
+    }
+
+    int matches = 0;
+    cout << endl << "Incident search results for \"" << keyword << "\"" << endl;
+    for (int i = 0; i < incidentCount; i++) {
+        string location = city.locationName(incidents[i].locationId);
+        if (hasKeyword(incidentTypeName(incidents[i].type), keyword) ||
+            hasKeyword(location, keyword) ||
+            hasKeyword(incidentStatusName(incidents[i].status), keyword)) {
+            printIncident(incidents[i], city);
+            matches++;
+        }
+    }
+    if (matches == 0) {
+        cout << "No incidents matched that search." << endl;
     }
 }
 
