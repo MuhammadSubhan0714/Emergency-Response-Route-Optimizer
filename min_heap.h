@@ -56,7 +56,7 @@ public:
             int right = left + 1;
             int smallestIndex = parent;
 
-            if (left < size && less(items[left], items[smallestIndex])) {
+            if (left < size && less(items[left], items[smallestIndex])) {       // less compares the minutes
                 smallestIndex = left;
             }
             if (right < size && less(items[right], items[smallestIndex])) {
@@ -81,9 +81,9 @@ private:
     }
 
     void swapItems(int first, int second) {
-        RouteCandidate temporary = items[first];
+        RouteCandidate temp = items[first];
         items[first] = items[second];
-        items[second] = temporary;
+        items[second] = temp;
     }
 };
 
