@@ -23,11 +23,7 @@ public:
     bool registerUnit(int type, int locationId);
     bool setAvailable(int unitId, bool available);
     bool completeDispatch(int unitId, int newLocationId);
-    bool findFastestUnit(int incidentType,
-                         int incidentLocation,
-                         const CityGraph& city,
-                         EmergencyUnit& chosenUnit,
-                         Route& chosenRoute) const;
+    bool findFastestUnit(int incidentType,int incidentLocation, const CityGraph& city, EmergencyUnit& chosenUnit, Route& chosenRoute) const;
     void showUnits(const CityGraph& city) const;
 
 private:
