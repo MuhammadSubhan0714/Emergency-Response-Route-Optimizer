@@ -61,9 +61,7 @@ string unitTypeName(int type) {
 UnitManager::UnitManager() : unitCount(0), nextUnitId(1) {
 }
 
-bool UnitManager::load(const string& fileName,
-                       const CityGraph& city,
-                       string& error) {
+bool UnitManager::load(const string& fileName, const CityGraph& city, string& error) {
     ifstream file(fileName.c_str());
     if (!file) {
         error = "Could not open emergency units file: " + fileName;
@@ -83,8 +81,7 @@ bool UnitManager::load(const string& fileName,
 
         string fields[4];
         if (splitLine(line, fields, 4) != 4 || unitCount == MAX_UNITS) {
-            error = "Invalid or excessive unit records near line " +
-                    to_string(lineNumber);
+            error = "Invalid or excessive unit records near line " + to_string(lineNumber);
             return false;
         }
 
@@ -193,11 +190,7 @@ bool UnitManager::unitCanHandle(int unitType, int incidentType) const {
     return unitType == 4;
 }
 
-bool UnitManager::findFastestUnit(int incidentType,
-                                  int incidentLocation,
-                                  const CityGraph& city,
-                                  EmergencyUnit& chosenUnit,
-                                  Route& chosenRoute) const {
+bool UnitManager::findFastestUnit(int incidentType, int incidentLocation, const CityGraph& city, EmergencyUnit& chosenUnit, Route& chosenRoute) const {
     bool foundUnit = false;
 
     for (int i = 0; i < unitCount; i++) {
@@ -205,8 +198,7 @@ bool UnitManager::findFastestUnit(int incidentType,
             continue;
         }
 
-        Route route = city.fastestRoute(city.locationName(units[i].locationId),
-                                        city.locationName(incidentLocation));
+        Route route = city.fastestRoute(city.locationName(units[i].locationId), city.locationName(incidentLocation));
         if (route.found &&
             (!foundUnit || route.travelMinutes < chosenRoute.travelMinutes)) {
             chosenUnit = units[i];
@@ -225,8 +217,6 @@ void UnitManager::showUnits(const CityGraph& city) const {
     }
 
     for (int i = 0; i < unitCount; i++) {
-        cout << "ID " << units[i].id << " | " << unitTypeName(units[i].type)
-             << " | " << city.locationName(units[i].locationId) << " | "
-             << (units[i].available ? "Available" : "Busy") << endl;
+        cout << "ID " << units[i].id << " | " << unitTypeName(units[i].type) << " | " << city.locationName(units[i].locationId) << " | " << (units[i].available ? "Available" : "Busy") << endl;
     }
 }
