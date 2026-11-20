@@ -191,28 +191,6 @@ void DispatchHistory::show() const {
     }
 }
 
-void DispatchHistory::searchByIncident(int incidentId) const {
-    int comparisons = 0;
-    DispatchRecord* current = head;
-
-    while (current != nullptr) {
-        comparisons++;
-        if (current->incidentId == incidentId) {
-            cout << "Dispatch record found:" << endl;
-            cout << "Incident " << current->incidentId
-                 << " | unit " << current->unitId
-                 << " | route " << current->travelMinutes << " min | "
-                 << (current->completed ? "Completed" : "In progress") << endl;
-            cout << "Linked-list comparisons: " << comparisons << endl;
-            return;
-        }
-        current = current->next;
-    }
-
-    cout << "No dispatch record for that incident. Comparisons: "
-         << comparisons << endl;
-}
-
 void DispatchHistory::showSortedByTravelTime() const {
     const int MAX_HISTORY = 100;
     DispatchRecord sorted[MAX_HISTORY];
