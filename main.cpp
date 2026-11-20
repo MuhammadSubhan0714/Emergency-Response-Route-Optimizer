@@ -82,15 +82,18 @@ void changeRoad(CityGraph& city) {
     }
 }
 
-void reportEmergency(const CityGraph& city, IncidentManager& manager) {
+void dispatchNextIncident(const CityGraph& city, IncidentManager& incidents,
+                          UnitManager& units, DispatchHistory& history);
+
+void reportEmergency(const CityGraph& city, IncidentManager& manager,
+                     UnitManager& units, DispatchHistory& history) {
     int type = 0;
     int severity = 0;
     int locationId = 0;
     string location;
     string restOfLine;
 
-    cout << "Emergency type: 1. Medical  2. Fire  3. Accident  4. Security"
-         << endl;
+    cout << "Emergency type: 1. Medical  2. Fire  3. Accident  4. Security"<< endl;
     cout << "Choose type: ";
     cin >> type;
     getline(cin, restOfLine);
@@ -115,9 +118,11 @@ void reportEmergency(const CityGraph& city, IncidentManager& manager) {
     }
 
     if (manager.report(type, locationId, severity)) {
+        manager.prioritizeNewReports();
         string error;
         if (manager.save(INCIDENTS_FILE, error)) {
-            cout << "Emergency report added to the incoming queue." << endl;
+            cout << "Emergency prioritized automatically." << endl;
+            dispatchNextIncident(city, manager, units, history);
         } else {
             cout << error << endl;
         }
@@ -153,8 +158,7 @@ void registerUnit(const CityGraph& city, UnitManager& units) {
     string location;
     string restOfLine;
 
-    cout << "Unit type: 1. Ambulance  2. Fire engine  3. Rescue  4. Patrol"
-         << endl;
+    cout << "Unit type: 1. Ambulance  2. Fire engine  3. Rescue  4. Patrol" << endl;
     cout << "Choose type: ";
     cin >> type;
     getline(cin, restOfLine);
@@ -183,10 +187,7 @@ void registerUnit(const CityGraph& city, UnitManager& units) {
     }
 }
 
-void dispatchNextIncident(const CityGraph& city,
-                          IncidentManager& incidents,
-                          UnitManager& units,
-                          DispatchHistory& history) {
+void dispatchNextIncident(const CityGraph& city,IncidentManager& incidents,UnitManager& units,DispatchHistory& history) {
     Incident incident;
     if (!incidents.nextForDispatch(incident)) {
         cout << "There are no prioritized incidents to dispatch." << endl;
@@ -207,8 +208,7 @@ void dispatchNextIncident(const CityGraph& city,
     units.setAvailable(unit.id, false);
     history.add(incident.id, unit.id, route.travelMinutes);
 
-    cout << "Dispatched unit " << unit.id << " with an estimated route time of "
-         << route.travelMinutes << " minutes." << endl;
+    cout << "Dispatched unit " << unit.id << " with an estimated route time of " << route.travelMinutes << " minutes." << endl;
     cout << "Route: ";
     for (int i = 0; i < route.locationCount; i++) {
         if (i > 0) {
@@ -230,20 +230,22 @@ void dispatchNextIncident(const CityGraph& city,
     }
 }
 
-void completeIncident(IncidentManager& incidents,
-                      UnitManager& units,
-                      DispatchHistory& history) {
+void completeIncident(const CityGraph& city, IncidentManager& incidents,
+                      UnitManager& units, DispatchHistory& history) {
     int incidentId = 0;
     int unitId = 0;
     int incidentLocation = 0;
     string restOfLine;
 
-    cout << "Incident ID to complete: ";
-    cin >> incidentId;
+    incidents.showDispatched(city);
+    cout << "Choose the incident number to complete: ";
+    int choice = 0;
+    cin >> choice;
     getline(cin, restOfLine);
 
-    if (!incidents.completeIncident(incidentId, unitId, incidentLocation)) {
-        cout << "That incident is not currently dispatched." << endl;
+    if (!incidents.completeDispatchedAt(choice, incidentId, unitId,
+                                        incidentLocation)) {
+        cout << "Choose a number from the dispatched incident list." << endl;
         return;
     }
 
@@ -287,6 +289,11 @@ int main() {
         return 1;
     }
 
+    incidentManager.prioritizeNewReports();
+    if (!incidentManager.save(INCIDENTS_FILE, error)) {
+        cout << error << endl;
+    }
+
     cout << "Smart Emergency Response and Route Optimizer" << endl;
     cout << "City map, route finder, and incident prioritization" << endl;
 
@@ -296,7 +303,7 @@ int main() {
         cout << "3. Find fastest route" << endl;
         cout << "4. Change traffic or road status" << endl;
         cout << "5. Report an emergency" << endl;
-        cout << "6. Prioritize new reports" << endl;
+        cout << "6. Search incidents by keyword" << endl;
         cout << "7. Show incident priorities" << endl;
         cout << "8. Advance waiting time" << endl;
         cout << "9. Show emergency units" << endl;
@@ -304,13 +311,10 @@ int main() {
         cout << "11. Dispatch the next incident" << endl;
         cout << "12. Complete a dispatched incident" << endl;
         cout << "13. Show dispatch history" << endl;
-        cout << "14. Search incidents (linear)" << endl;
-        cout << "15. Search incidents (binary)" << endl;
-        cout << "16. Sort incidents by priority" << endl;
-        cout << "17. Sort dispatches by travel time" << endl;
-        cout << "18. Search dispatch history" << endl;
-        cout << "19. Find incidents at a location" << endl;
-        cout << "0. Save and exit" << endl;
+        cout << "14. Sort incidents by priority" << endl;
+        cout << "15. Sort dispatches by travel time" << endl;
+        cout << "16. Find incidents at a location" << endl;
+        cout << "17. Save and exit" << endl;
 
         int choice = -1;
         cout << "Choose: ";
@@ -319,21 +323,6 @@ int main() {
         getline(cin, restOfLine);
 
         switch (choice) {
-            case 0:
-                if (!city.saveRoads(ROADS_FILE, error)) {
-                    cout << error << endl;
-                }
-                if (!incidentManager.save(INCIDENTS_FILE, error)) {
-                    cout << error << endl;
-                }
-                if (!unitManager.save(UNITS_FILE, error)) {
-                    cout << error << endl;
-                }
-                if (!dispatchHistory.save(HISTORY_FILE, error)) {
-                    cout << error << endl;
-                }
-                cout << "Project data saved. Goodbye." << endl;
-                return 0;
             case 1:
                 city.printLocations();
                 break;
@@ -347,16 +336,16 @@ int main() {
                 changeRoad(city);
                 break;
             case 5:
-                reportEmergency(city, incidentManager);
+                reportEmergency(city, incidentManager, unitManager,
+                                dispatchHistory);
                 break;
-            case 6:
-                incidentManager.prioritizeNewReports();
-                if (incidentManager.save(INCIDENTS_FILE, error)) {
-                    cout << "Incoming reports moved into the priority heap." << endl;
-                } else {
-                    cout << error << endl;
-                }
+            case 6: {
+                string keyword;
+                cout << "Search by emergency type, location, or status: ";
+                getline(cin, keyword);
+                incidentManager.searchByKeyword(keyword, city);
                 break;
+            }
             case 7:
                 incidentManager.showPriorities(city);
                 break;
@@ -374,50 +363,42 @@ int main() {
                                      dispatchHistory);
                 break;
             case 12:
-                completeIncident(incidentManager, unitManager, dispatchHistory);
+                completeIncident(city, incidentManager, unitManager,
+                                 dispatchHistory);
                 break;
             case 13:
                 dispatchHistory.show();
                 break;
-            case 14: {
-                int incidentId = 0;
-                cout << "Incident ID to find: ";
-                cin >> incidentId;
-                getline(cin, restOfLine);
-                incidentManager.searchLinear(incidentId, city);
-                break;
-            }
-            case 15: {
-                int incidentId = 0;
-                cout << "Incident ID to find: ";
-                cin >> incidentId;
-                getline(cin, restOfLine);
-                incidentManager.searchBinary(incidentId, city);
-                break;
-            }
-            case 16:
+            case 14:
                 incidentManager.showSortedByPriority(city);
                 break;
-            case 17:
+            case 15:
                 dispatchHistory.showSortedByTravelTime();
                 break;
-            case 18: {
-                int incidentId = 0;
-                cout << "Incident ID to find in dispatch history: ";
-                cin >> incidentId;
-                getline(cin, restOfLine);
-                dispatchHistory.searchByIncident(incidentId);
-                break;
-            }
-            case 19: {
+            case 16: {
                 string location;
                 cout << "Location name: ";
                 getline(cin, location);
                 incidentManager.searchByLocation(location, city);
                 break;
             }
+            case 17:
+                if (!city.saveRoads(ROADS_FILE, error)) {
+                    cout << error << endl;
+                }
+                if (!incidentManager.save(INCIDENTS_FILE, error)) {
+                    cout << error << endl;
+                }
+                if (!unitManager.save(UNITS_FILE, error)) {
+                    cout << error << endl;
+                }
+                if (!dispatchHistory.save(HISTORY_FILE, error)) {
+                    cout << error << endl;
+                }
+                cout << "Project data saved. Goodbye." << endl;
+                return 0;
             default:
-                cout << "Choose a menu option from 0 to 19." << endl;
+                cout << "Choose a menu option from 1 to 17." << endl;
                 break;
         }
     }
