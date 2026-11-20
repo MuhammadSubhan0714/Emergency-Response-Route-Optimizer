@@ -29,6 +29,7 @@ private:
     static const int BUCKET_COUNT = 31;
     LocationEntry* buckets[BUCKET_COUNT];
 
+    string lowerCase(const string& name) const;
     int hash(const string& name) const;
 };
 
