@@ -35,9 +35,7 @@ public:
     CityGraph();
     ~CityGraph();
 
-    bool load(const string& locationsFile,
-              const string& roadsFile,
-              string& error);
+    bool load(const string& locationsFile,const string& roadsFile,string& error);
     bool saveRoads(const string& roadsFile, string& error) const;
 
     bool findLocation(const string& name, int& id) const;
@@ -45,12 +43,8 @@ public:
     void printLocations() const;
     void printRoads() const;
 
-    Route fastestRoute(const string& startName,
-                       const string& destinationName) const;
-    bool updateRoad(const string& firstName,
-                    const string& secondName,
-                    int travelMinutes,
-                    bool open);
+    Route fastestRoute(const string& startName,const string& destinationName) const;
+    bool updateRoad(const string& firstName, const string& secondName,int travelMinutes,bool open);
 
 private:
     // This class owns linked-list nodes, so copying it would share pointers.
